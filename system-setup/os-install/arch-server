@@ -18,14 +18,14 @@ root_user_check() {
     fi
 }
 
-system_boot_mode_check() {
+boot_mode_check() {
     if [ "$(cat /sys/firmware/efi/fw_platform_size)" != "64" ]; then
         printf "%b\n" "${RED}ERROR: A 64-bit UEFI system is required.${RC}"
         exit 1
     fi
 }
 
-specified_disk_check() {
+disk_check() {
     if [ -z "$1" ]; then
         printf "%b\n" "${RED}ERROR: No disk specified.${RC}"
         exit 1
@@ -37,7 +37,7 @@ specified_disk_check() {
     fi
 }
 
-console_set() {
+set_console() {
     clear
     loadkeys ${KEYMAP}
     setfont ter-v18b
@@ -90,7 +90,7 @@ user_information_prompt() {
     done
 }
 
-specified_disk_format() {
+disk_format() {
     printf "%b\n" "${YELLOW}Formatting disk...${RC}"
     umount -R /mnt || true
     sgdisk -Z "${DISK}"
@@ -119,7 +119,7 @@ specified_disk_format() {
     mount --mkdir "${P1}" /mnt/boot
 }
 
-mirrors_refresh() {
+refresh_mirrors() {
     printf "%b\n" "${YELLOW}Updating pacman mirrors...${RC}"
     reflector --country "${MIRROR}" --latest 5 --protocol https --save /etc/pacman.d/mirrorlist
 }
@@ -133,7 +133,7 @@ system_install() {
     fi
 }
 
-system_configuration() {
+system_configure() {
     genfstab -U /mnt >> /mnt/etc/fstab
     arch-chroot /mnt /bin/bash << EOF
 
@@ -171,15 +171,15 @@ EOF
 }
 
 root_user_check
-system_boot_mode_check
-specified_disk_check
-console_set
+boot_mode_check
+disk_check
+set_console
 user_information_prompt
 clear
-specified_disk_format
-mirrors_refresh
+disk_format
+refresh_mirrors
 system_install
-system_configuration
+system_configure
 clear
 
 printf "%b\n" "${YELLOW}Rebooting system in 5 seconds...${RC}"
