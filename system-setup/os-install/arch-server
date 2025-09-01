@@ -1,82 +1,97 @@
 #!/bin/sh -e
 
+RED="\033[0;31m"	
+GREEN="\033[0;32m"
+YELLOW="\033[0;33m"
+CYAN="\033[0;36m"
+RC="\033[0m"
+
+# region defaults (change to your preference)
 KEYMAP="br-abnt2"
 MIRROR="Brazil"
 TIMEZONE="America/Sao_Paulo"
 
-checkUefi() {
-    if [ "$(cat /sys/firmware/efi/fw_platform_size)" != "64" ]; then
-        printf "%b\n" "ERROR: A 64-bit UEFI system is required"
+root_user_check() {
+    if [ "$(id -u)" -ne 0 ]; then
+        printf "%b\n" "${RED}ERROR: You must run this as root.${RC}"
         exit 1
     fi
 }
 
-checkDisk() {
+system_boot_mode_check() {
+    if [ "$(cat /sys/firmware/efi/fw_platform_size)" != "64" ]; then
+        printf "%b\n" "${RED}ERROR: A 64-bit UEFI system is required.${RC}"
+        exit 1
+    fi
+}
+
+specified_disk_check() {
     if [ -z "$1" ]; then
-        printf "%b\n" "ERROR: No disk specified. Usage: $0 /dev/sdX"
+        printf "%b\n" "${RED}ERROR: No disk specified.${RC}"
         exit 1
     elif [ ! -b "$1" ]; then
-        printf "%b\n" "ERROR: $1 is not a valid block device"
+        printf "%b\n" "${RED}ERROR: $1 is not a valid device.${RC}"
         exit 1
     else
         DISK=$1
     fi
 }
 
-setConsole() {
+console_set() {
     clear
     loadkeys ${KEYMAP}
     setfont ter-v18b
 }
 
-setUserInformation() {
+user_information_prompt() {
     while :; do
-        printf "\n%b " "Enter your username:"
+        printf "%b " "${CYAN}Enter your username:${RC}"
         read -r username
         username=$(printf "%s" "$username" | xargs | tr "[:upper:]" "[:lower:]")
         if [ "$username" != "root" ] && printf "%s" "$username" | grep -Eq "^[a-z][-a-z0-9_]*\$"; then
             USER="$username"
             break
         else
-            printf "%b\n" "WARNING: Invalid username"
+            printf "%b\n" "${RED}Invalid username.${RC}"
         fi
     done
 
     while :; do
-        printf "\n%b " "Enter your password:"
+        printf "%b " "${CYAN}Enter your password:${RC}"
         stty -echo
         read -r password
         stty echo
 
-        printf "\n%b " "Verify your password:"
+        printf "\n%b " "${CYAN}Verify your password:${RC}"
         stty -echo
         read -r verify
         stty echo
 
         if [ "$password" != "$verify" ]; then
-            printf "\n%b\n" "WARNING: Passwords do not match"
+            printf "\n%b\n" "${RED}Passwords do not match.${RC}"
         elif [ "$password" = "$verify" ] && [ -n "$password" ]; then
             PASSWORD="$password"
             break
         else
-            printf "\n%b\n" "WARNING: Invalid password"
+            printf "\n%b\n" "${RED}Invalid password.${RC}"
         fi  
     done
 
     while :; do
-        printf "\n\n%b " "Name your machine:"
+        printf "\n%b " "${CYAN}Name your machine:${RC}"
         read -r hostname
         hostname=$(printf "%s" "$hostname" | xargs | tr "[:upper:]" "[:lower:]")
         if printf "%s" "$hostname" | grep -Eq "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])$"; then
             HOSTNAME="$hostname"
             break
         else
-            printf "%b" "WARNING: Invalid hostname"
+            printf "%b" "${RED}Invalid hostname.${RC}"
         fi
     done
 }
 
-formatDisk() {
+specified_disk_format() {
+    printf "%b\n" "${YELLOW}Formatting disk...${RC}"
     umount -R /mnt || true
     sgdisk -Z "${DISK}"
     sgdisk -a 2048 "${DISK}"
@@ -104,11 +119,13 @@ formatDisk() {
     mount --mkdir "${P1}" /mnt/boot
 }
 
-updateMirrors() {
+mirrors_refresh() {
+    printf "%b\n" "${YELLOW}Updating pacman mirrors...${RC}"
     reflector --country "${MIRROR}" --latest 5 --protocol https --save /etc/pacman.d/mirrorlist
 }
 
-baseSystem() {
+system_install() {
+    printf "%b\n" "${YELLOW}Installing system...${RC}"
     if [ "$(systemd-detect-virt)" = "none" ]; then
         pacstrap -K /mnt base linux-lts linux-firmware
     else
@@ -116,36 +133,36 @@ baseSystem() {
     fi
 }
 
-configuration() {
+system_configuration() {
     genfstab -U /mnt >> /mnt/etc/fstab
     arch-chroot /mnt /bin/bash << EOF
 
-    printf "%b\n" "Setting timezone..."
+    printf "%b\n" "${YELLOW}Configuring timezone...${RC}"
     ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
     hwclock --systohc
 
-    printf "%b\n" "Setting locale..."
+    printf "%b\n" "${YELLOW}Setting language to pt-BR...${RC}"
     sed -i 's/^#pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen
     locale-gen
     printf "%b\n" "LANG=pt_BR.UTF-8" > /etc/locale.conf
 
-    printf "%b\n" "Setting keymap..."
+    printf "%b\n" "${YELLOW}Configuring keyboard layout...${RC}"
     printf "%b%s\n" "KEYMAP=" "${KEYMAP}" > /etc/vconsole.conf
 
-    printf "%b\n" "Setting hostname..."
+    printf "%b\n" "${YELLOW}Configuring machine name...${RC}"
     printf "%s\n" "${HOSTNAME}" > /etc/hostname
 
-    printf "%b\n" "Setting network..."
+    printf "%b\n" "${YELLOW}Installing network manager...${RC}"
     pacman -S --noconfirm --needed networkmanager
     systemctl enable NetworkManager
 
-    printf "%b\n" "Setting user..."
+    printf "%b\n" "${YELLOW}Creating user...${RC}"
     pacman -S --noconfirm --needed sudo
     useradd -m -G wheel -s /bin/bash ${USER}
     printf "%s:%s\n" "${USER}" "${PASSWORD}" | chpasswd
     sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 
-    printf "%b\n" "Setting grub..."
+    printf "%b\n" "${YELLOW}Installing grub...${RC}"
     pacman -S --noconfirm --needed grub efibootmgr
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
     grub-mkconfig -o /boot/grub/grub.cfg
@@ -153,25 +170,26 @@ configuration() {
 EOF
 }
 
-checkUefi
-checkDisk "$1"
-setConsole
-setUserInformation
+root_user_check
+system_boot_mode_check
+specified_disk_check
+console_set
+user_information_prompt
 clear
-formatDisk
-updateMirrors
-baseSystem
-configuration
+specified_disk_format
+mirrors_refresh
+system_install
+system_configuration
 clear
 
-printf "%b\n" "Rebooting system in 5 seconds..."
+printf "%b\n" "${YELLOW}Rebooting system in 5 seconds...${RC}"
 sleep 1
-printf "%b\n" "Rebooting system in 4 seconds..."
+printf "%b\n" "${YELLOW}Rebooting system in 4 seconds...${RC}"
 sleep 1
-printf "%b\n" "Rebooting system in 3 seconds..."
+printf "%b\n" "${YELLOW}Rebooting system in 3 seconds...${RC}"
 sleep 1
-printf "%b\n" "Rebooting system in 2 seconds..."
+printf "%b\n" "${YELLOW}Rebooting system in 2 seconds...${RC}"
 sleep 1
-printf "%b\n" "Rebooting system in 1 second..."
+printf "%b\n" "${YELLOW}Rebooting system in 1 second...${RC}"
 sleep 1
 systemctl reboot

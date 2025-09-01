@@ -8,3 +8,6 @@
 ## Applications Setup
 - [X] Dwm Install
 - [X] Bash Install
+
+## OS Install
+- [ ] Arch Server
