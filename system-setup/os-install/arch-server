@@ -172,7 +172,7 @@ EOF
 
 root_user_check
 boot_mode_check
-disk_check
+disk_check "$1"
 set_console
 user_information_prompt
 clear
