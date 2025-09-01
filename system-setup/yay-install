@@ -1,0 +1,18 @@
+#!/bin/sh -e
+
+. ../shared-functions
+
+yay_install() {
+    if ! command -v yay >/dev/null 2>&1; then
+        printf "%b\n" "${YELLOW}Installing yay...${RC}"
+        sudo pacman -S --noconfirm --needed git base-devel
+        cd "$gitpath" && rm -rf yay-bin && git clone https://aur.archlinux.org/yay-bin.git
+        cd "$gitpath/yay-bin"
+        makepkg -si --noconfirm
+        printf "%b\n" "${GREEN}Yay was installed.${RC}"
+    else
+        printf "%b\n" "${GREEN}Yay is already installed.${RC}"
+    fi
+}
+
+yay_install

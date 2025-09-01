@@ -1,0 +1,57 @@
+#!/bin/sh -e
+
+. ../shared-functions
+
+imgpath="$HOME/media/images" && mkdir -p "$imgpath"
+printpath="$imgpath/screenshots" && mkdir -p "$printpath"
+
+dwm_dependencies() {
+    printf "%b\n" "${YELLOW}Installing dwm dependencies...${RC}"
+    sudo pacman -S --noconfirm --needed git base-devel xorg-server xorg-xinit xorg-xrandr libev libconfig uthash meson alacritty rofi thunar gvfs flameshot feh dunst mate-polkit ttf-meslo-nerd noto-fonts noto-fonts-emoji papirus-icon-theme
+}
+
+dwm_install() {
+    printf "%b\n" "${YELLOW}Installing dwm...${RC}"
+    cd "$gitpath" && rm -rf dwm-gab && git clone https://github.com/dallagnoli/dwm-gab.git
+    cd "$gitpath/dwm-gab"
+    sudo make clean install
+}
+
+slstatus_install() {
+    printf "%b\n" "${YELLOW}Installing slstatus...${RC}"
+    cd "$gitpath/dwm-gab/slstatus"
+    sudo make clean install
+}
+
+picom_install() {
+    printf "%b\n" "${YELLOW}Installing picom...${RC}"
+    cd "$gitpath" && rm -rf picom-ftlabs && git clone https://github.com/dallagnoli/picom-ftlabs.git
+    cd "$gitpath/picom-ftlabs"
+    meson setup --buildtype=release build
+    ninja -C build
+    sudo ninja -C build install
+}
+
+dotfiles_setup() {
+    printf "%b\n" "${YELLOW}Setting up dotfiles...${RC}"
+    rm -rf "$confpath/alacritty" && mkdir -p "$confpath/alacritty"
+    ln -sfn "$gitpath/dwm-gab/config/alacritty/alacritty.toml" "$confpath/alacritty/alacritty.toml"
+    ln -sfn "$gitpath/dwm-gab/config/alacritty/colors.toml" "$confpath/alacritty/colors.toml"
+    ln -sfn "$gitpath/dwm-gab/config/alacritty/keybinds.toml" "$confpath/alacritty/keybinds.toml"
+    rm -rf "$confpath/rofi" && mkdir -p "$confpath/rofi"
+    ln -sfn "$gitpath/dwm-gab/config/rofi/config.rasi" "$confpath/rofi/config.rasi"
+    ln -sfn "$gitpath/dwm-gab/config/rofi/nord.rasi" "$confpath/rofi/nord.rasi"
+}
+
+backgrounds_setup() {
+    printf "%b\n" "${YELLOW}Setting up backgrounds...${RC}"
+    cd "$imgpath" && rm -rf backgrounds && git clone https://github.com/dallagnoli/backgrounds.git
+    printf "%b\n" "${GREEN}Dwm was installed.${RC}"
+}
+
+dwm_dependencies
+dwm_install
+slstatus_install
+picom_install
+dotfiles_setup
+backgrounds_setup

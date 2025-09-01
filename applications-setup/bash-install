@@ -1,0 +1,22 @@
+#!/bin/sh -e
+
+. ../shared-functions
+
+bash_dependencies() {
+    printf "%b\n" "${YELLOW}Installing bash dependencies...${RC}"
+    sudo pacman -S --noconfirm --needed git bash-completion ttf-meslo-nerd starship zoxide fzf bat ripgrep trash-cli fastfetch tar xz zstd gzip bzip2 unzip unrar p7zip
+}
+
+bash_install() {
+    printf "%b\n" "${YELLOW}Installing bash...${RC}"
+    cd "$gitpath" && rm -rf my-bash && git clone https://github.com/dallagnoli/my-bash.git
+    cd "$gitpath/my-bash"
+    ln -sfn "$PWD/.bashrc" "$HOME/.bashrc"
+    ln -sfn "$PWD/starship.toml" "$confpath/starship.toml"
+    rm -rf "$confpath/fastfetch" && mkdir -p "$confpath/fastfetch"
+    ln -sfn "$PWD/config.jsonc" "$confpath/fastfetch/config.jsonc"
+    printf "%b\n" "${GREEN}Bash was installed.${RC}"
+}
+
+bash_dependencies
+bash_install
