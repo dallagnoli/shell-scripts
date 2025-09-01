@@ -13,24 +13,24 @@ TIMEZONE="America/Sao_Paulo"
 
 root_user_check() {
     if [ "$(id -u)" -ne 0 ]; then
-        printf "%b\n" "${RED}ERROR: You must run this as root.${RC}"
+        printf "%b\n" "${RED}You must run this as root.${RC}"
         exit 1
     fi
 }
 
 boot_mode_check() {
     if [ "$(cat /sys/firmware/efi/fw_platform_size)" != "64" ]; then
-        printf "%b\n" "${RED}ERROR: A 64-bit UEFI system is required.${RC}"
+        printf "%b\n" "${RED}A 64-bit UEFI system is required.${RC}"
         exit 1
     fi
 }
 
 disk_check() {
     if [ -z "$1" ]; then
-        printf "%b\n" "${RED}ERROR: No disk specified.${RC}"
+        printf "%b\n" "${RED}No disk specified.${RC}"
         exit 1
     elif [ ! -b "$1" ]; then
-        printf "%b\n" "${RED}ERROR: $1 is not a valid device.${RC}"
+        printf "%b\n" "${RED}$1 is not a valid device.${RC}"
         exit 1
     else
         DISK=$1
